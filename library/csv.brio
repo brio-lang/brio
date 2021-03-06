@@ -1,0 +1,33 @@
+# Brio Lang Standard library
+# csv.brio
+#
+
+class Writer{
+    method init(file){
+        @f = file
+    }
+
+    method writerow(list){
+        let total = size(list)
+        let nextIndex = 0
+        for (let i=0; i<total; i+=1;){
+            @f.write(list[i])
+            nextIndex = i + 1;
+            if (nextIndex != total) {
+                @f.write(",")
+            }
+        }
+    }
+}
+
+class Reader{
+    method init(file){
+        @f = file
+    }
+
+    method rows(){
+        let input = @f.read()
+        let data = [input]
+        return data
+    }
+}

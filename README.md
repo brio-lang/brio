@@ -49,7 +49,7 @@ optional arguments:
   -gv                         Outputs a DOT file for visualizing the AST
   -sym                        Prints the symbol table globals 
   -ast                        Prints each node type in the AST
-  -fcgi                       Starts FastCGI listener, must be called from spawn-cgi
+  -fcgi                       Starts FastCGI listener, must be called from spawn-fcgi
 ```
 
 ## Code Examples
@@ -65,7 +65,7 @@ $ brio app.brio
 Hello world ✋
 ```
 
-### Fibonnacci Series
+### Fibonacci Series
 ```brio
 # Fibonacci series up to n
 method fib(n){

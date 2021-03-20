@@ -41,7 +41,7 @@ void print_tokens(Lexer * lex){
  * Prints the version to the screen.
  */
 void print_version(){
-    std::cout << "brio-lang: version " << VERSION << std::endl;
+    std::cout << "Brio " << VERSION << std::endl;
 };
 
 /**

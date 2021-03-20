@@ -57,8 +57,8 @@ optional arguments:
 ### Hello World
 ```brio
 method main(){
-    print("Hello world ✋");
-};
+    print("Hello world ✋")
+}
 ```
 ```
 $ brio app.brio
@@ -127,6 +127,12 @@ San Francisco
 Frankfurt
 Ottawa
 ```
+
+## Visual Studio Code
+
+There is an extension available for VS Code that provides language support including syntax highlighting, and the ability to define a Brio interpreter and execute your code.
+
+* [Download Brio for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=brio-lang.brio)  (or view on [GitHub](https://github.com/brio-lang/vscode-brio))
 
 ## License
 Brio Lang is copyrighted free software, licensed under the Modified BSD License. 

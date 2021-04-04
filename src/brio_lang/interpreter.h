@@ -143,6 +143,7 @@ class Interpreter {
         Integer * bitXor(AST * node);
         void tryStatement(AST * node);
         void catchStatement(AST * node, string id, string msg, void * e);
+        bool isClassOrInheritsFrom(string className, string match);
         AST * getGenericCatch(AST * node);
         AST * getSpecificCatch(string name, AST * node);
         void raiseStatement(AST * node);
@@ -153,6 +154,7 @@ class Interpreter {
         void forStatement(AST * node);
         void eachStatement(AST * node);
         void print(AST * node);
+        Object * getEnv(AST * node);
         Object * range(AST * node);
         Object * input(AST * node);
         Object * index(AST * node);
@@ -172,7 +174,7 @@ class Interpreter {
         Object * load (AST *);
         Object * memberLoad (AST *);
         void memberAssign(AST *, Object *);
-        MemorySpace * getSpaceWithSymbol(string id);
+        MemorySpace * getSpaceWithSymbol(AST * node);
         SymbolTable * table;
         ProgramNode * root;
     private:

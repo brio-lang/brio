@@ -195,6 +195,7 @@ void SymbolTable::initTypeSystem(){
     this->globals.define(new BuiltInMethodSymbol("integer"));
     this->globals.define(new BuiltInMethodSymbol("decimal"));
     this->globals.define(new BuiltInMethodSymbol("arg"));
+    this->globals.define(new BuiltInMethodSymbol("getEnv"));
 
     // init temp built-in method symbols (will go away)
     this->globals.define(new BuiltInMethodSymbol("httpGet"));

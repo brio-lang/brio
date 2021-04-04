@@ -67,6 +67,10 @@ class String : public Object {
         Object * clone();
         Object * builtIn(string method_id, Array * params);
         Object * builtIn(string attribute);
+        String * format(Array * params);
+        Boolean * isDigit(Array * params);
+        Boolean * isAlpha(Array * params);
+        Array * split(Array * params);
         string toString();
         string value;
     private:

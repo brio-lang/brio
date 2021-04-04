@@ -2,7 +2,7 @@
 /// Brio Lang
 /// parser.cc
 ///
-/// Backtracking Recursive Descent Parser
+/// Backtracking recursive descent parser with memoization.
 /// Dynamically sized lookahead buffer.
 ///
 
@@ -15,6 +15,8 @@
 #include <iostream>
 
 
+const int FAILED = -1;  // parsing failed last attempt
+
 Parser::Parser(Lexer * lex){
     lexer = lex;
     p = 0;
@@ -26,6 +28,7 @@ void Parser::consume(){
     if (p == lookahead.size() && !isSpeculating()){
         p = 0;
         lookahead.clear();
+        clearMemo();
     }
     sync(1);  // get another to replace consumed token
 };
@@ -57,6 +60,28 @@ Token Parser::next(string text){
     throw RecognitionException("token '" + text + "' not found in lookahead");
 };
 
+/**
+ * Returns the current input position. 
+ */
+int Parser::pIndex(){
+    return p;
+}
+
+void Parser::memoize(map<int,int> memoization, int startIndex, bool failed){
+    int stopIndex = failed ? FAILED : this->pIndex();
+    memoization[startIndex] = stopIndex;
+};
+
+bool Parser::alreadyParsedRule(map<int,int> memoization){
+    if (!memoization.count(this->pIndex())) return false;
+    int memo = memoization[this->pIndex()];
+    if (memo == FAILED){
+        throw PreviousParseFailedException();
+    }
+    seek(memo);
+    return true;
+}
+
 void Parser::match(int token_type, string value){
     if (this->la(1) == token_type && this->lt(1).getText() == value){
         this->consume();
@@ -76,7 +101,7 @@ void Parser::match(int token_type){
 };
 
 void Parser::sync(int i){
-    if ( p+i-1 > (int(lookahead.size()) - 1) ){  // out of tokens?
+    if ( p+i-1 > (int(lookahead.size()) - 1) ){
         int n = (p+i-1) - (int(lookahead.size())-1);
         fill(n);
     }
@@ -120,6 +145,40 @@ void BrioParser::addNodeAndDescend(AST * node){
 void BrioParser::addChild(AST * node){
     if (isSpeculating()) return;
     this->currentNode->addChild(node);
+}
+
+void BrioParser::clearMemo(){
+    methodCallMemo.clear();
+    memberAccessMemo.clear();
+    methodDeclarationMemo.clear();
+    classDeclarationMemo.clear();
+    varAssignmentMemo.clear();
+    lessThanMemo.clear();
+    lessThanOrEqualMemo.clear();
+    greaterThanMemo.clear();
+    greaterThanOrEqualMemo.clear();
+    equalToMemo.clear();
+    notEqualToMemo.clear();
+    shiftLeftMemo.clear();
+    shiftRightMemo.clear();
+    boolAndMemo.clear();
+    boolOrMemo.clear();
+    boolXorMemo.clear();
+    bitOrMemo.clear();
+    bitXorMemo.clear();
+    bitOrAssignMemo.clear();
+    bitAndMemo.clear();
+    bitAndAssignMemo.clear();
+    exponentMemo.clear();
+    additionMemo.clear();
+    additionAssignMemo.clear();
+    subtractionMemo.clear();
+    subtractionAssignMemo.clear();
+    multiplicationMemo.clear();
+    multiplicationAssignMemo.clear();
+    divisionMemo.clear();
+    divisionAssignMemo.clear();
+    modulusMemo.clear();
 }
 
 AST * BrioParser::popChild(){
@@ -197,12 +256,17 @@ void BrioParser::optEndStatement(){
 
 bool BrioParser::speculateMethodDeclaration(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(methodDeclarationMemo)) return success;
+
     mark();
     try{
         this->methodDeclaration();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(methodDeclarationMemo, startIndex, !success);
     return success;
 }
 
@@ -225,12 +289,17 @@ void BrioParser::methodDeclaration(){
 
 bool BrioParser::speculateMethodCall(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(methodCallMemo)) return success;
+
     mark();
     try{
         this->methodCall();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(methodCallMemo, startIndex, !success);
     return success;
 }
 
@@ -239,7 +308,11 @@ void BrioParser::methodCall(){
     this->addNodeAndDescend(node);
 
     // match method call rules
-    this->term();
+    if (this->speculateMemberAccess()){
+        this->memberAccess();
+    } else {
+        this->identifier();
+    }
     this->paramsList();
     this->optEndStatement();
 
@@ -269,12 +342,17 @@ void BrioParser::optSuperClass(){
 
 bool BrioParser::speculateClassDeclaration(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(classDeclarationMemo)) return success;
+
     mark();
     try{
         this->classDeclaration();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(classDeclarationMemo, startIndex, !success);
     return success;
 }
 
@@ -324,12 +402,17 @@ void BrioParser::variableDeclaration(){
 
 bool BrioParser::speculateVariableAssignment(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(varAssignmentMemo)) return success;
+
     mark();
     try{
         this->variableAssignment();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(varAssignmentMemo, startIndex, !success);
     return success;
 }
 
@@ -542,9 +625,6 @@ void BrioParser::expression(){
     else if (this->lt(1).getText() == Keywords::NEW && this->la(2) == T_IDENTIFIER){
         this->classInstantiation();
     }
-    else if (this->speculateMethodCall()){
-        this->methodCall();
-    }
     else if (this->speculateVariableAssignment()){
         this->variableAssignment();
     }
@@ -586,12 +666,17 @@ void BrioParser::index(){
 
 bool BrioParser::speculateMemberAccess(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(memberAccessMemo)) return success;
+
     mark();
     try{
         this->memberAccess();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(memberAccessMemo, startIndex, !success);
     return success;
 };
 
@@ -808,12 +893,17 @@ void BrioParser::forStatement(){
 
 bool BrioParser::speculateBoolAnd(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(boolAndMemo)) return success;
+
     mark();
     try{
         this->boolAnd();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(boolAndMemo, startIndex, !success);
     return success;
 }
 
@@ -845,12 +935,17 @@ void BrioParser::boolAnd(ParenthesesNode * lhs){
 
 bool BrioParser::speculateBoolOr(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(boolOrMemo)) return success;
+
     mark();
     try{
         this->boolOr();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(boolOrMemo, startIndex, !success);
     return success;
 }
 
@@ -976,12 +1071,17 @@ void BrioParser::test(){
 
 bool BrioParser::speculateLessThan(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(lessThanMemo)) return success;
+
     mark();
     try{
         this->lessThan();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(lessThanMemo, startIndex, !success);
     return success;
 }
 
@@ -1013,12 +1113,17 @@ void BrioParser::lessThan(ParenthesesNode * lhs){
 
 bool BrioParser::speculateLessThanOrEqual(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(lessThanOrEqualMemo)) return success;
+
     mark();
     try{
         this->lessThanOrEqual();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(lessThanOrEqualMemo, startIndex, !success);
     return success;
 }
 
@@ -1050,12 +1155,17 @@ void BrioParser::lessThanOrEqual(ParenthesesNode * lhs){
 
 bool BrioParser::speculateEqualTo(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(equalToMemo)) return success;
+
     mark();
     try{
         this->equalTo();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(equalToMemo, startIndex, !success);
     return success;
 }
 
@@ -1087,12 +1197,17 @@ void BrioParser::equalTo(ParenthesesNode * lhs){
 
 bool BrioParser::speculateNotEqualTo(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(notEqualToMemo)) return success;
+
     mark();
     try{
         this->notEqualTo();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(notEqualToMemo, startIndex, !success);
     return success;
 }
 
@@ -1124,12 +1239,17 @@ void BrioParser::notEqualTo(ParenthesesNode * lhs){
 
 bool BrioParser::speculateGreaterThan(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(greaterThanMemo)) return success;
+
     mark();
     try{
         this->greaterThan();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(greaterThanMemo, startIndex, !success);
     return success;
 }
 
@@ -1161,12 +1281,17 @@ void BrioParser::greaterThan(ParenthesesNode * lhs){
 
 bool BrioParser::speculateGreaterThanOrEqual(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(greaterThanOrEqualMemo)) return success;
+
     mark();
     try{
         this->greaterThanOrEqual();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(greaterThanOrEqualMemo, startIndex, !success);
     return success;
 }
 
@@ -1198,12 +1323,17 @@ void BrioParser::greaterThanOrEqual(ParenthesesNode * lhs){
 
 bool BrioParser::speculateShiftLeft(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(shiftLeftMemo)) return success;
+
     mark();
     try{
         this->shiftLeft();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(shiftLeftMemo, startIndex, !success);
     return success;
 }
 
@@ -1235,12 +1365,17 @@ void BrioParser::shiftLeft(ParenthesesNode * lhs){
 
 bool BrioParser::speculateShiftRight(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(shiftRightMemo)) return success;
+
     mark();
     try{
         this->shiftRight();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(shiftRightMemo, startIndex, !success);
     return success;
 }
 
@@ -1321,12 +1456,17 @@ void BrioParser::binaryOperation(){
 
 bool BrioParser::speculateBitOr(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(bitOrMemo)) return success;
+
     mark();
     try{
         this->bitOr();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(bitOrMemo, startIndex, !success);
     return success;
 }
 
@@ -1358,12 +1498,17 @@ void BrioParser::bitOr(ParenthesesNode * lhs){
 
 bool BrioParser::speculateBitOrAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(bitOrAssignMemo)) return success;
+
     mark();
     try{
         this->bitOrAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(bitOrAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1383,12 +1528,17 @@ void BrioParser::bitOrAssign(){
 
 bool BrioParser::speculateBitXor(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(bitXorMemo)) return success;
+
     mark();
     try{
         this->bitXor();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(bitXorMemo, startIndex, !success);
     return success;
 }
 
@@ -1420,12 +1570,17 @@ void BrioParser::bitXor(ParenthesesNode * lhs){
 
 bool BrioParser::speculateBitAnd(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(bitAndMemo)) return success;
+
     mark();
     try{
         this->bitAnd();
     }
     catch(RecognitionException ex){success=false;}
     release();
+
+    if (isSpeculating()) memoize(bitAndMemo, startIndex, !success);
     return success;
 }
 
@@ -1457,12 +1612,17 @@ void BrioParser::bitAnd(ParenthesesNode * lhs){
 
 bool BrioParser::speculateBitAndAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(bitAndAssignMemo)) return success;
+
     mark();
     try{
         this->bitAndAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(bitAndAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1482,12 +1642,17 @@ void BrioParser::bitAndAssign(){
 
 bool BrioParser::speculateExponent(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(exponentMemo)) return success;
+
     mark();
     try{
         this->exponent();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(exponentMemo, startIndex, !success);
     return success;
 }
 
@@ -1519,12 +1684,17 @@ void BrioParser::exponent(ParenthesesNode * lhs){
 
 bool BrioParser::speculateModulus(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(modulusMemo)) return success;
+
     mark();
     try{
         this->modulus();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(modulusMemo, startIndex, !success);
     return success;
 }
 
@@ -1556,12 +1726,17 @@ void BrioParser::modulus(ParenthesesNode * lhs){
 
 bool BrioParser::speculateAddition(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(additionMemo)) return success;
+
     mark();
     try{
         this->addition();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(additionMemo, startIndex, !success);
     return success;
 }
 
@@ -1593,12 +1768,17 @@ void BrioParser::addition(ParenthesesNode * lhs){
 
 bool BrioParser::speculateAdditionAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(additionAssignMemo)) return success;
+
     mark();
     try{
         this->additionAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(additionAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1618,12 +1798,17 @@ void BrioParser::additionAssign(){
 
 bool BrioParser::speculateSubtraction(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(subtractionMemo)) return success;
+
     mark();
     try{
         this->subtraction();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(subtractionMemo, startIndex, !success);
     return success;
 }
 
@@ -1655,12 +1840,17 @@ void BrioParser::subtraction(ParenthesesNode * lhs){
 
 bool BrioParser::speculateSubtractionAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(subtractionAssignMemo)) return success;
+
     mark();
     try{
         this->subtractionAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(subtractionAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1680,12 +1870,17 @@ void BrioParser::subtractionAssign(){
 
 bool BrioParser::speculateMultiplication(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(multiplicationMemo)) return success;
+    
     mark();
     try{
         this->multiplication();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(multiplicationMemo, startIndex, !success);
     return success;
 }
 
@@ -1717,12 +1912,17 @@ void BrioParser::multiplication(ParenthesesNode * lhs){
 
 bool BrioParser::speculateMultiplicationAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(multiplicationAssignMemo)) return success;
+
     mark();
     try{
         this->multiplicationAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(multiplicationAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1742,12 +1942,17 @@ void BrioParser::multiplicationAssign(){
 
 bool BrioParser::speculateDivision(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(divisionMemo)) return success;
+
     mark();
     try{
         this->division();
     }
     catch(RecognitionException e){success = false;};
     release();
+
+    if (isSpeculating()) memoize(divisionMemo, startIndex, !success);
     return success;
 }
 
@@ -1779,12 +1984,17 @@ void BrioParser::division(ParenthesesNode * lhs){
 
 bool BrioParser::speculateDivisionAssign(){
     bool success = true;
+    int startIndex = this->pIndex();
+    if (isSpeculating() && alreadyParsedRule(divisionAssignMemo)) return success;
+
     mark();
     try{
         this->divisionAssign();
     }
     catch(RecognitionException e){success=false;}
     release();
+
+    if (isSpeculating()) memoize(divisionAssignMemo, startIndex, !success);
     return success;
 };
 
@@ -1803,7 +2013,10 @@ void BrioParser::divisionAssign(){
 };
 
 void BrioParser::term(){
-    if (this->speculateMemberAccess()){
+    if (this->speculateMethodCall()){
+        this->methodCall();
+    }
+    else if (this->speculateMemberAccess()){
         this->memberAccess();
     }
     else if (this->la(1) == T_IDENTIFIER){

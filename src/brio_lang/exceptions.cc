@@ -20,6 +20,8 @@ Object * ExceptionUtil::castException(string name, void * e){
         return static_cast<ParserError*>(e);
     }else if (name=="RecognitionException"){
         return static_cast<RecognitionException*>(e);
+    }else if (name=="PreviousParseFailedException"){
+        return static_cast<PreviousParseFailedException*>(e);
     }else if (name=="MismatchedTokenException"){
         return static_cast<MismatchedTokenException*>(e);
     }else if (name=="SyntaxError"){
@@ -90,6 +92,8 @@ Object * ExceptionUtil::createException(string name, string msg){
         return new ParserError(msg);
     }else if (name=="RecognitionException"){
         return new RecognitionException(msg);
+    }else if (name=="PreviousParseFailedException"){
+        return new PreviousParseFailedException(msg);
     }else if (name=="MismatchedTokenException"){
         return new MismatchedTokenException(msg);
     }else if (name=="SyntaxError"){
@@ -204,6 +208,9 @@ RecognitionException::RecognitionException() : BaseException() {};
 RecognitionException::RecognitionException(string message) : BaseException(message) {};
 RecognitionException::RecognitionException(string message, int lineno) : BaseException(message, lineno) {};
 
+PreviousParseFailedException::PreviousParseFailedException() : RecognitionException() {};
+PreviousParseFailedException::PreviousParseFailedException(string message) : RecognitionException(message) {};
+PreviousParseFailedException::PreviousParseFailedException(string message, int lineno) : RecognitionException(message, lineno) {};
 
 MismatchedTokenException::MismatchedTokenException() : RecognitionException() {};
 MismatchedTokenException::MismatchedTokenException(string message) : RecognitionException(message) {};

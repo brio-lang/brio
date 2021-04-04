@@ -137,6 +137,14 @@ String::String(string str_value){
 Object * String::builtIn(string method_id, Array * params){
     if (method_id == "size"){
         return this->getSize();
+    }else if (method_id == "format"){
+        return this->format(params);
+    }else if (method_id == "isdigit"){
+        return this->isDigit(params);
+    }else if (method_id == "isalpha"){
+        return this->isAlpha(params);
+    }else if (method_id == "split"){
+        return this->split(params);
     }
     else{
         throw ValueError("'" + method_id + "' not implemented for " + this->getType());
@@ -146,6 +154,58 @@ Object * String::builtIn(string method_id, Array * params){
 Object * String::builtIn(string attribute){
     throw NotImplementedError("built in attribute not implemented");
 }
+
+Array * String::split(Array * params){
+    Array * values = new Array();
+
+    if (params->value.size() == 0){
+        throw ValueError("split() takes a single string object");
+    }
+
+    String * splitOn = static_cast<String*>(params->value[0]);
+
+    string newValue = "";
+    for (int i = 0; i < this->value.size(); i++){
+        char c = this->value[i];
+
+        if (c != splitOn->value[0]){
+            newValue += c;
+        }else{
+            values->value.push_back(new String(newValue));
+            newValue = "";
+        }
+    }
+
+    if (newValue != ""){
+        values->value.push_back(new String(newValue));
+    }
+
+    return values;
+}
+
+String * String::format(Array * params){
+    String * formatted = new String(this->value);
+    for (int i=0; i<params->getSize()->value; i++){
+        Object * replaceVal = params->value[i];
+        string substr = "{" + std::to_string(i) + "}";  // {0} or {1} or ...
+        
+        // replace all occurances
+        size_t found = formatted->value.find(substr);
+        while (found != string::npos){
+            formatted->value.replace(found, substr.size(), replaceVal->toString());
+            found = formatted->value.find(substr, found+1);
+        }
+    }    
+    return formatted;
+}
+
+Boolean * String::isDigit(Array * params){
+    return new Boolean(isdigit(this->value[0]));
+};
+
+Boolean * String::isAlpha(Array * params){
+    return new Boolean(isalpha(this->value[0]));
+};
 
 string String::toString(){
     return this->value;

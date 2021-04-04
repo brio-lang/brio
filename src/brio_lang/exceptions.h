@@ -77,6 +77,14 @@ class RecognitionException : public BaseException{
         string getType(){return "RecognitionException";};
 };
 
+class PreviousParseFailedException : public RecognitionException{
+    public:
+        PreviousParseFailedException();
+        PreviousParseFailedException(string message);
+        PreviousParseFailedException(string message, int lineno);
+        string getType(){return "PreviousParseFailedException";};
+};
+
 class MismatchedTokenException : public RecognitionException{
     public:
         MismatchedTokenException();

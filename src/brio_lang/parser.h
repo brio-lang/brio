@@ -22,6 +22,10 @@ class Parser {
         void release();
         void seek(int index);
         bool isSpeculating();
+        int pIndex();
+        void memoize(map<int,int> memoization, int startIndex, bool failed);
+        bool alreadyParsedRule(map<int,int> memoization);
+        virtual inline void clearMemo(){};
     private:
         Lexer * lexer;
         std::vector<Token> lookahead;
@@ -36,6 +40,7 @@ class BrioParser : public Parser {
         void addChild(AST * node);
         AST * popChild();
         void restoreNode();
+        void clearMemo();
         ProgramNode program();
         void import();
         void importFrom();
@@ -157,6 +162,39 @@ class BrioParser : public Parser {
         AST * rootNode;
         AST * currentNode;
         std::vector<AST*> saveNodes;
+
+        // data structures for memoization
+        map<int,int> methodCallMemo;
+        map<int,int> memberAccessMemo;
+        map<int,int> methodDeclarationMemo;
+        map<int,int> classDeclarationMemo;
+        map<int,int> varAssignmentMemo;
+        map<int,int> lessThanMemo;
+        map<int,int> lessThanOrEqualMemo;
+        map<int,int> greaterThanMemo;
+        map<int,int> greaterThanOrEqualMemo;
+        map<int,int> equalToMemo;
+        map<int,int> notEqualToMemo;
+        map<int,int> shiftLeftMemo;
+        map<int,int> shiftRightMemo;
+        map<int,int> boolAndMemo;
+        map<int,int> boolOrMemo;
+        map<int,int> boolXorMemo;
+        map<int,int> bitOrMemo;
+        map<int,int> bitXorMemo;
+        map<int,int> bitOrAssignMemo;
+        map<int,int> bitAndMemo;
+        map<int,int> bitAndAssignMemo;
+        map<int,int> exponentMemo;
+        map<int,int> additionMemo;
+        map<int,int> additionAssignMemo;
+        map<int,int> subtractionMemo;
+        map<int,int> subtractionAssignMemo;
+        map<int,int> multiplicationMemo;
+        map<int,int> multiplicationAssignMemo;
+        map<int,int> divisionMemo;
+        map<int,int> divisionAssignMemo;
+        map<int,int> modulusMemo;
 };
 
 #endif  // BRIOLANG_SRC_PARSER_H_

@@ -63,7 +63,7 @@ TEST(InterpreterTest, IntegerNegativeExponent){
     ASSERT_EQ(result->toString(), "0.25");
 };
 
-// TEST(InterpreterTest, OpPrecedence){
-//     Object * result = exec("3 * 3 - -2 * (3 + -1 * (10)) - 5 + 2 ** -2");
-//     ASSERT_EQ(result->toString(), "-9.75");
-// };
+TEST(InterpreterTest, OpPrecedence){
+    Object * result = exec("2 + 3 * 3");
+    ASSERT_EQ(result->toString(), "11");
+};

@@ -6,50 +6,41 @@
 #include <string>
 
 
-// TEST(LexerTest, TokenKeyword){
-//     BrioLexer lexer("let");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_KEYWORD);
-//     ASSERT_EQ(lexer.nextToken().getType(), T_EOF);
-// };
+TEST(LexerTest, TokenKeyword){
+    BrioLexer lexer("let");
+    ASSERT_EQ(lexer.nextToken().getType(), T_KEYWORD);
+    ASSERT_EQ(lexer.nextToken().getType(), T_EOF);
+};
 
-// TEST(LexerTest, TokenIdentifier){
-//     BrioLexer lexer("foo");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_IDENTIFIER);
-// };
+TEST(LexerTest, TokenIdentifier){
+    BrioLexer lexer("foo");
+    ASSERT_EQ(lexer.nextToken().getType(), T_IDENTIFIER);
+};
 
-// TEST(LexerTest, TokenOperator){
-//     BrioLexer lexer("=");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_OPERATOR);
-// };
+TEST(LexerTest, TokenOperator){
+    BrioLexer lexer("=");
+    ASSERT_EQ(lexer.nextToken().getType(), T_OPERATOR);
+};
 
-// TEST(LexerTest, TokenDelimiter){
-//     BrioLexer lexer(";");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_DELIMITER);
-// };
+TEST(LexerTest, TokenDelimiter){
+    BrioLexer lexer(";");
+    ASSERT_EQ(lexer.nextToken().getType(), T_DELIMITER);
+};
 
-// TEST(LexerTest, TokenLiteralInt){
-//     BrioLexer lexer("1");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_INT);
-// };
+TEST(LexerTest, TokenLiteralInt){
+    BrioLexer lexer("1");
+    ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_INT);
+};
 
-// TEST(LexerTest, TokenLiteralString){
-//     BrioLexer lexer("'hello'");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_STRING);
-// };
+TEST(LexerTest, TokenLiteralString){
+    BrioLexer lexer("'hello'");
+    ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_STRING);
+};
 
-// TEST(LexerTest, TokenLiteralBool){
-//     BrioLexer lexer("False");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_BOOL);
-// };
-
-// TEST(LexerTest, TokenSingleLineComment){
-//     BrioLexer lexer("#comment");
-//     ASSERT_EQ(lexer.nextToken().getType(), T_SINGLE_LINE_COMMENT);
-// };
-
-// TEST(LexerTest, TokenMultiLineComment){
-
-// };
+TEST(LexerTest, TokenLiteralBool){
+    BrioLexer lexer("false");
+    ASSERT_EQ(lexer.nextToken().getType(), T_LITERAL_BOOL);
+};
 
 TEST(LexerTest, HelloWorld){
     string code = "print('hello world');";

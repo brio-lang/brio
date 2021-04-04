@@ -252,6 +252,9 @@ Object * Interpreter::exec(AST * node){
     else if (nodeType == IdentifierNode::type){
         return this->identifier(node);
     }
+    else if (nodeType == MethodDeclarationNode::type){
+        // nothing to do
+    }
     else{
         throw NotImplementedError("interpreter: unimplemented node: " + nodeType);
     }
@@ -381,12 +384,21 @@ void Interpreter::import(AST * node){
     this->exec(importedModule);
 };
 
-/** Return scope holding id's value; current method space or global. */
-MemorySpace * Interpreter::getSpaceWithSymbol(string id){
-    if (stack.size() > 0 && stack.peek()->get(id) != nullptr){
+/** Return scope holding id's value; current method space, imported module space, or globals. */
+MemorySpace * Interpreter::getSpaceWithSymbol(AST * node){
+    if (stack.size() > 0 && stack.peek()->get(node->getNodeText()) != nullptr){
         return stack.peek();
     }
-    if (globals->get(id) != nullptr){ 
+    
+    if (node->hasAncestor(ImportedModuleNode::type)){
+        AST * importParent = node->getAncestor(ImportedModuleNode::type);
+        ImportedInstance * importSpace = static_cast<ImportedInstance*>(globals->get(importParent->getNodeText()));
+        if (importSpace->get(node->getNodeText()) != nullptr){
+            return importSpace;
+        }
+    }
+
+    if (globals->get(node->getNodeText()) != nullptr){ 
         return globals;
     }
     return nullptr;
@@ -470,6 +482,20 @@ Decimal * Interpreter::decimal(AST * node){
     Object * result = this->exec(node);
     return new Decimal(result);
 };
+
+/**
+ * Built-in function to retrieve an environment variable.
+ */
+Object * Interpreter::getEnv(AST * node){
+    if (node->children.size() == 0){
+        return new None();
+    }
+    if (getenv(node->children[0]->getNodeText().c_str()) != nullptr){
+        string value = getenv(node->children[0]->getNodeText().c_str());
+        return new String(value);
+    }
+    return new None();
+}
 
 /**
  * Temporary function to enable "print()" built-in method.
@@ -654,7 +680,8 @@ Object * Interpreter::load(AST * node){
     if (node->getType() == MemberAccessNode::type){
         return this->memberLoad(node);
     }
-    MemorySpace * space = this->getSpaceWithSymbol(node->getNodeText());
+
+    MemorySpace * space = this->getSpaceWithSymbol(node);
     if (space != nullptr) return space->get(node->getNodeText());
     throw NameError("no such variable " + node->getNodeText());
     return nullptr;
@@ -670,9 +697,6 @@ Object * Interpreter::memberLoad(AST * node){
 
     AST * attributeNode = node->children[node->getChildCount()-1]; 
     string attribute = attributeNode->getNodeText();
-
-    // check if member load is for built-in type
-    if (this->isBuiltInType(obj)) return this->builtInTypeAttribute(obj, attribute);
 
     // load subsequent members
     for (int i=1; i<int(node->children.size()); i++){
@@ -701,9 +725,10 @@ Object * Interpreter::memberLoad(AST * node){
         }
 
         // if not final member, check if built-in type
-        if (attributeNode != memberNode){
-            if (this->isBuiltInType(obj)) return this->builtInTypeAttribute(obj, attribute);
-        }
+        // TODO: fix me:  @data = @a[@b]
+        // if (attributeNode != memberNode){
+        //     if (this->isBuiltInType(obj)) return this->builtInTypeAttribute(obj, attribute);
+        // }
     }
 
     return obj;
@@ -819,7 +844,7 @@ void Interpreter::varAssignment(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     space->put(lhs->getNodeText(), value);
 };
@@ -879,6 +904,7 @@ Object * Interpreter::main(vector<Object*> params){
 };
 
 String * Interpreter::traceback(AST * node){
+    // TODO: determine file name and module name
     string traceback = "Traceback (most recent call last):\n";
 
     for (int i=0; i<this->stack.methodSpace.size(); i++){
@@ -958,6 +984,9 @@ Object * Interpreter::builtInMethodCall(AST * node){
     }
     else if (method_id == "print"){
         this->print(params);
+    }
+    else if (method_id == "getEnv"){
+        return this->getEnv(params);
     }
     else if (method_id == "range"){
         return this->range(params);
@@ -1218,7 +1247,9 @@ ClassInstance * Interpreter::classInstantiation(AST * node){
         }
     }else{
         class_sym = static_cast<ClassSymbol*>(lhs->scope->resolve(className));
-        class_instance = static_cast<ClassInstance*>(globals->get(className)->clone());
+        if (class_sym != nullptr){
+            class_instance = static_cast<ClassInstance*>(this->load(lhs)->clone());
+        }
     }
 
     if (class_sym == nullptr){
@@ -1348,7 +1379,7 @@ void Interpreter::addAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1366,7 +1397,7 @@ void Interpreter::subtractAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1384,7 +1415,7 @@ void Interpreter::multiplyAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1402,7 +1433,7 @@ void Interpreter::divideAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1622,7 +1653,7 @@ void Interpreter::bitOrAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1640,7 +1671,7 @@ void Interpreter::bitAndAssign(AST * node){
         return;
     }
 
-    MemorySpace * space = this->getSpaceWithSymbol(lhs->getNodeText());
+    MemorySpace * space = this->getSpaceWithSymbol(lhs);
     if (space == nullptr) space = currentSpace;
     
     Object * curValue = space->get(lhs->getNodeText());
@@ -1803,7 +1834,7 @@ void Interpreter::catchStatement(AST * node, string exceptionId, string exceptio
                 AST * lhs = paramItem->children[0];
                 AST * rhs = paramItem->children[1];
             
-                if (lhs->getNodeText() == exceptionId){
+                if (this->isClassOrInheritsFrom(exceptionId, paramItem->getNodeText())){
                     catchNode = catchItem;
                     string catchNodeId = lhs->getNodeText();
                     string catchNodeAsId = rhs->getNodeText();
@@ -1829,7 +1860,7 @@ void Interpreter::catchStatement(AST * node, string exceptionId, string exceptio
             }
             else{
                 // if identifier
-                if (paramItem->getNodeText() == exceptionId){
+                if (this->isClassOrInheritsFrom(exceptionId, paramItem->getNodeText())){
                     catchNode = catchItem;
                 }
             }
@@ -1849,6 +1880,27 @@ void Interpreter::catchStatement(AST * node, string exceptionId, string exceptio
     }
     else throw Exception();
 };
+
+bool Interpreter::isClassOrInheritsFrom(string className, string match){
+    Symbol * sym = this->table->globals.resolve(className);
+    if (sym == nullptr) return false;
+
+    ClassSymbol * cSym = dynamic_cast<ClassSymbol*>(sym);
+    if (cSym == nullptr) return false;
+    
+    if (match == cSym->getSymbolName()) return true;
+    
+    // lookup chain of parent classes for match
+    ClassSymbol * pSym = cSym->superClass;
+    while (pSym != nullptr){
+        if (match == pSym->getSymbolName()){
+            return true;
+        }else{
+            pSym = pSym->superClass;
+        }
+    }
+    return false;
+}
 
 void Interpreter::raiseStatement(AST * node){
     throw node;
